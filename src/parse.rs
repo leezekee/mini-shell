@@ -3,7 +3,7 @@ use std::env;
 pub type Command<'a> = &'a str;
 pub type Arg<'a> = &'a str;
 pub type Args<'a> = Vec<&'a str>;
-pub type EnvPath<'a> = Vec<&'a str>;
+pub type EnvPath<'a> = Vec<String>;
 
 pub struct ParsedCommand<'a> {
     pub command: Command<'a>,
@@ -43,10 +43,10 @@ impl<'a> AsRef<str> for ParsedCommand<'a> {
 
 pub fn get_env_path<'a>() -> EnvPath<'a> {
     let path_string = env::var("PATH").unwrap_or_default();
-    let static_path_str = Box::leak(path_string.into_boxed_str());
-    let env_path: EnvPath = static_path_str
+    let env_path: EnvPath = path_string
         .split(if cfg!(windows) { ';' } else { ':' })
         .filter(|&p| !p.is_empty() && p != "$PATH")
+        .map(|p| String::from(p))
         .collect();
 
     env_path

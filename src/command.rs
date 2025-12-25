@@ -52,7 +52,7 @@ pub fn cd(parsed_command: ParsedCommand) {
 
 // ================== private functions ==================
 
-fn search_file_in_paths(filename: &str, paths: &[&str]) -> Option<PathBuf> {
+fn search_file_in_paths(filename: &str, paths: &[String]) -> Option<PathBuf> {
     paths.iter().find_map(|dir| {
         let full_path = PathBuf::from(dir).join(filename);
         if full_path.is_file() && is_executable(&full_path) {
