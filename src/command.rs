@@ -18,6 +18,7 @@ pub fn _type(parsed_command: ParsedCommand) {
     if BUILT_IN_COMMANDS.contains(&command.as_ref()) {
         println!("{} is a shell builtin", command)
     } else {
+        go_through_paths(&paths);
         // search arguments in paths
         match search_file_in_paths(command.as_mut_str(), &paths) {
             Some(path) => println!("{} is {}", command, path.display()),
