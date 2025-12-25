@@ -1,4 +1,5 @@
-use crate::parse::ParsedCommand;
+use crate::parse::{self, ParsedCommand};
+use std::path::PathBuf;
 
 const BUILT_IN_COMMANDS: [&str; 3] = ["exit", "type", "echo"];
 
@@ -11,10 +12,27 @@ pub fn echo(parsed_command: ParsedCommand) {
 }
 
 pub fn _type(parsed_command: ParsedCommand) {
-    let command = parsed_command.args.join(" ");
+    let mut command = parsed_command.args.join(" ");
+    let paths = parse::get_env_path();
     if BUILT_IN_COMMANDS.contains(&command.as_ref()) {
         println!("{} is a shell builtin", command)
     } else {
-        println!("{}: not found", command)
+        // search args in paths
+        match search_file_in_paths(command.as_mut_str(), &paths) {
+            Some(path) => println!("{} is {}", command, path.display()),
+            None => println!("{}: not found", command),
+        }
     }
+}
+
+fn search_file_in_paths(filename: &str, paths: &[&str]) -> Option<PathBuf> {
+    for dir in paths {
+        let full_path = PathBuf::from(dir).join(filename);
+
+        if full_path.is_file() {
+            return Some(full_path);
+        }
+    }
+
+    None
 }
