@@ -7,6 +7,13 @@ fn main() {
         io::stdout().flush().unwrap();
         let mut command = String::new();
         io::stdin().read_line(&mut command).unwrap();
-        println!("{}: command not found", command.trim());
+        match command.trim() {
+            "exit" => break,
+            _ => command_not_found(&mut command),
+        }
     }
+}
+
+fn command_not_found(command: &mut String) {
+    println!("{}: command not found", command.trim());
 }
