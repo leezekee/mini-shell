@@ -38,7 +38,11 @@ pub fn pwd() {
 }
 
 pub fn cd(parsed_command: ParsedCommand) {
-    let target_dir = parsed_command.args[0];
+    let mut target_dir = parsed_command.args[0];
+    let home = parse::get_env_home();
+    if target_dir == "~" {
+        target_dir = &home;
+    }
     let path = Path::new(target_dir);
     match env::set_current_dir(path) {
         Ok(_) => {}

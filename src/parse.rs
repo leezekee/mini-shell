@@ -51,3 +51,7 @@ pub fn get_env_path<'a>() -> EnvPath<'a> {
 
     env_path
 }
+
+pub fn get_env_home<'a>() -> String {
+    env::var("HOME").unwrap_or_default()
+}
