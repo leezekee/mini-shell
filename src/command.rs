@@ -1,6 +1,6 @@
 use crate::parse::{self, ParsedCommand};
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process;
 use std::{env, fs};
 
@@ -35,6 +35,15 @@ pub fn _type(parsed_command: ParsedCommand) {
 pub fn pwd() {
     let work_dir = env::current_dir().expect("");
     println!("{}", work_dir.display());
+}
+
+pub fn cd(parsed_command: ParsedCommand) {
+    let target_dir = parsed_command.args[0];
+    let path = Path::new(target_dir);
+    match env::set_current_dir(path) {
+        Ok(_) => {}
+        Err(_) => println!("cd: {}: No such file or directory", target_dir),
+    }
 }
 
 // ================== private functions ==================

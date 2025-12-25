@@ -19,6 +19,7 @@ fn main() {
             "echo" => command::echo(command),
             "type" => command::_type(command),
             "pwd" => command::pwd(),
+            "cd" => command::cd(command),
             _ => command::default(command),
         }
     }
