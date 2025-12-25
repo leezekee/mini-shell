@@ -9,9 +9,7 @@ const BUILT_IN_COMMANDS: [&str; 4] = ["exit", "type", "echo", "pwd"];
 pub fn default(parsed_command: ParsedCommand) {
     let paths = parse::get_env_path();
     match search_file_in_paths(parsed_command.command, &paths) {
-        Some(path) => {
-            execute_external(path.into_os_string().to_str().unwrap(), parsed_command.args)
-        }
+        Some(_) => execute_external(parsed_command.command, parsed_command.args),
         None => not_found(parsed_command),
     }
 }
