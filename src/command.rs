@@ -2,11 +2,16 @@ use crate::parse::{self, ParsedCommand};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use std::process;
 
 const BUILT_IN_COMMANDS: [&str; 3] = ["exit", "type", "echo"];
 
-pub fn not_found(parsed_command: ParsedCommand) {
-    println!("{}: command not found", parsed_command.command);
+pub fn default(parsed_command: ParsedCommand) {
+    let paths = parse::get_env_path();
+    match search_file_in_paths(parsed_command.command, &paths) {
+        Some(path) => execute_external(parsed_command.command, parsed_command.args),
+        None => not_found(parsed_command),
+    }
 }
 
 pub fn echo(parsed_command: ParsedCommand) {
@@ -46,4 +51,16 @@ fn is_executable(file_path: &PathBuf) -> bool {
         }
         Err(_) => false,
     }
+}
+
+fn not_found(parsed_command: ParsedCommand) {
+    println!("{}: command not found", parsed_command.command);
+}
+
+#[allow(unused_variables)]
+fn execute_external(program: &str, args: parse::Args) {
+    let status = process::Command::new(program)
+        .args(&args)
+        .status()
+        .expect("");
 }

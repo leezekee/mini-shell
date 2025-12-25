@@ -18,7 +18,7 @@ fn main() {
             "exit" => break,
             "echo" => command::echo(command),
             "type" => command::_type(command),
-            _ => command::not_found(command),
+            _ => command::default(command),
         }
     }
 }

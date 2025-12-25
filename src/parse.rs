@@ -1,9 +1,9 @@
 use std::env;
 
-type Command<'a> = &'a str;
-type Arg<'a> = &'a str;
-type Args<'a> = Vec<&'a str>;
-type EnvPath<'a> = Vec<&'a str>;
+pub type Command<'a> = &'a str;
+pub type Arg<'a> = &'a str;
+pub type Args<'a> = Vec<&'a str>;
+pub type EnvPath<'a> = Vec<&'a str>;
 
 pub struct ParsedCommand<'a> {
     pub command: Command<'a>,
