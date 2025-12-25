@@ -1,15 +1,21 @@
 use crate::parse::{self, ParsedCommand};
-use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process;
+use std::{env, fs};
 
 const BUILT_IN_COMMANDS: [&str; 3] = ["exit", "type", "echo"];
 
 pub fn default(parsed_command: ParsedCommand) {
     let paths = parse::get_env_path();
     match search_file_in_paths(parsed_command.command, &paths) {
-        Some(path) => execute_external(parsed_command.command, parsed_command.args),
+        Some(path) => execute_external(
+            path.join(parsed_command.command)
+                .into_os_string()
+                .to_str()
+                .unwrap(),
+            parsed_command.args,
+        ),
         None => not_found(parsed_command),
     }
 }
@@ -31,6 +37,13 @@ pub fn _type(parsed_command: ParsedCommand) {
         }
     }
 }
+
+pub fn pwd() {
+    let work_dir = env::current_dir().expect("");
+    println!("{}", work_dir.display());
+}
+
+// ================== private functions ==================
 
 fn search_file_in_paths(filename: &str, paths: &[&str]) -> Option<PathBuf> {
     paths.iter().find_map(|dir| {

@@ -18,6 +18,7 @@ fn main() {
             "exit" => break,
             "echo" => command::echo(command),
             "type" => command::_type(command),
+            "pwd" => command::pwd(),
             _ => command::default(command),
         }
     }
