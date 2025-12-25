@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process;
 use std::{env, fs};
 
-const BUILT_IN_COMMANDS: [&str; 3] = ["exit", "type", "echo"];
+const BUILT_IN_COMMANDS: [&str; 4] = ["exit", "type", "echo", "pwd"];
 
 pub fn default(parsed_command: ParsedCommand) {
     let paths = parse::get_env_path();
