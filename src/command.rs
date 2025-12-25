@@ -11,9 +11,10 @@ pub fn echo(parsed_command: ParsedCommand) {
 }
 
 pub fn _type(parsed_command: ParsedCommand) {
-    if BUILT_IN_COMMANDS.contains(&parsed_command.as_ref()) {
-        println!("{} is a shell builtin", parsed_command.command)
+    let command = parsed_command.args.join(" ");
+    if BUILT_IN_COMMANDS.contains(&command.as_ref()) {
+        println!("{} is a shell builtin", command)
     } else {
-        println!("{}: not found", parsed_command.command)
+        println!("{}: not found", command)
     }
 }
