@@ -17,7 +17,7 @@ pub fn _type(parsed_command: ParsedCommand) {
     if BUILT_IN_COMMANDS.contains(&command.as_ref()) {
         println!("{} is a shell builtin", command)
     } else {
-        // search args in paths
+        // search arguments in paths
         match search_file_in_paths(command.as_mut_str(), &paths) {
             Some(path) => println!("{} is {}", command, path.display()),
             None => println!("{}: not found", command),
@@ -26,13 +26,12 @@ pub fn _type(parsed_command: ParsedCommand) {
 }
 
 fn search_file_in_paths(filename: &str, paths: &[&str]) -> Option<PathBuf> {
-    for dir in paths {
+    paths.iter().find_map(|dir| {
         let full_path = PathBuf::from(dir).join(filename);
-
         if full_path.is_file() {
-            return Some(full_path);
+            Some(full_path)
+        } else {
+            None
         }
-    }
-
-    None
+    })
 }
