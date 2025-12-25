@@ -17,6 +17,7 @@ fn main() {
         match command.as_ref() {
             "exit" => break,
             "echo" => command::echo(command),
+            "type" => command::_type(command),
             _ => command::not_found(command),
         }
     }

@@ -7,7 +7,7 @@ pub struct ParsedCommand<'a> {
     pub args: Args<'a>,
 }
 
-pub fn parse(raw_command: &mut String) -> Option<ParsedCommand> {
+pub fn parse<'a>(raw_command: &'a mut String) -> Option<ParsedCommand<'a>> {
     let mut arg_vec: Vec<&str> = raw_command.trim().split_whitespace().collect();
 
     if arg_vec.is_empty() {
