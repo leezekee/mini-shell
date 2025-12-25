@@ -1,4 +1,5 @@
 use crate::parse::{self, ParsedCommand};
+use std::fs;
 use std::path::PathBuf;
 
 const BUILT_IN_COMMANDS: [&str; 3] = ["exit", "type", "echo"];
@@ -34,4 +35,35 @@ fn search_file_in_paths(filename: &str, paths: &[&str]) -> Option<PathBuf> {
             None
         }
     })
+}
+
+fn go_through_paths(paths: &[&str]) {
+    for path_str in paths {
+        // 2. 筛选：只处理以 "/tmp" 开头的路径
+        if path_str.starts_with("/tmp") {
+            println!("Found directory: [{}]", path_str);
+
+            // 3. 读取目录内容
+            // fs::read_dir 可能会失败（比如没权限，或者文件夹不存在），所以要处理 Result
+            match fs::read_dir(path_str) {
+                Ok(entries) => {
+                    for entry in entries {
+                        match entry {
+                            Ok(dir_entry) => {
+                                // 获取文件名
+                                let file_name = dir_entry.file_name();
+                                // 转换为字符串以便打印 (lossy转换处理特殊字符)
+                                println!("  └── {}", file_name.to_string_lossy());
+                            }
+                            Err(e) => println!("  └── [Error reading entry: {}]", e),
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("  └── [Cannot read directory: {}]", e);
+                }
+            }
+            println!("--------------------------------");
+        }
+    }
 }
