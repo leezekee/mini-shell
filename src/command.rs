@@ -1,4 +1,4 @@
-use crate::parse::{self, ParsedCommand};
+use crate::parse::{self, Arg, ParsedCommand};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -8,8 +8,8 @@ const BUILT_IN_COMMANDS: [&str; 4] = ["exit", "type", "echo", "pwd"];
 
 pub fn default(parsed_command: ParsedCommand) {
     let paths = parse::get_env_path();
-    match search_file_in_paths(parsed_command.command, &paths) {
-        Some(_) => execute_external(parsed_command.command, parsed_command.args),
+    match search_file_in_paths(&parsed_command.command, &paths) {
+        Some(_) => execute_external(&parsed_command.command, parsed_command.args),
         None => not_found(parsed_command),
     }
 }
@@ -19,13 +19,13 @@ pub fn echo(parsed_command: ParsedCommand) {
 }
 
 pub fn _type(parsed_command: ParsedCommand) {
-    let mut command = parsed_command.args.join(" ");
+    let command = parsed_command.args.join(" ");
     let paths = parse::get_env_path();
     if BUILT_IN_COMMANDS.contains(&command.as_ref()) {
         println!("{} is a shell builtin", command)
     } else {
         // search arguments in paths
-        match search_file_in_paths(command.as_mut_str(), &paths) {
+        match search_file_in_paths(&command, &paths) {
             Some(path) => println!("{} is {}", command, path.display()),
             None => println!("{}: not found", command),
         }
@@ -38,12 +38,12 @@ pub fn pwd() {
 }
 
 pub fn cd(parsed_command: ParsedCommand) {
-    let mut target_dir = parsed_command.args[0];
+    let mut target_dir: &Arg = &parsed_command.args[0];
     let home = parse::get_env_home();
     if target_dir == "~" {
         target_dir = &home;
     }
-    let path = Path::new(target_dir);
+    let path = Path::new(&target_dir);
     match env::set_current_dir(path) {
         Ok(_) => {}
         Err(_) => println!("cd: {}: No such file or directory", target_dir),
@@ -52,7 +52,7 @@ pub fn cd(parsed_command: ParsedCommand) {
 
 // ================== private functions ==================
 
-fn search_file_in_paths(filename: &str, paths: &[String]) -> Option<PathBuf> {
+fn search_file_in_paths(filename: &String, paths: &[String]) -> Option<PathBuf> {
     paths.iter().find_map(|dir| {
         let full_path = PathBuf::from(dir).join(filename);
         if full_path.is_file() && is_executable(&full_path) {
@@ -78,7 +78,7 @@ fn not_found(parsed_command: ParsedCommand) {
 }
 
 #[allow(unused_variables)]
-fn execute_external(program: &str, args: parse::Args) {
+fn execute_external(program: &String, args: parse::Args) {
     let status = process::Command::new(program)
         .args(&args)
         .status()
