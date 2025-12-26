@@ -13,8 +13,11 @@ pub struct ParsedCommand {
 pub fn parse(raw_command: &mut String) -> Option<ParsedCommand> {
     let v_command: Vec<&str> = raw_command.trim().splitn(2, " ").collect();
     let command = String::from(v_command[0]);
+    if v_command.len() == 1 {
+        let args: Args = Vec::new();
+        return Some(ParsedCommand { command, args });
+    }
     let arg_str = v_command[1];
-
     let arg_string = String::from(arg_str);
     let mut args: Vec<String> = Vec::new();
     let mut in_single_quote = false;
