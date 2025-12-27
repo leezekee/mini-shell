@@ -59,13 +59,13 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                     if let Some(next_ch) = chars_iter.next() {
                         current_token.push(next_ch);
                     }
-                },
+                }
                 WHITESPACE => {
                     if !current_token.is_empty() {
                         args.push(std::mem::take(&mut current_token));
                         current_token.clear();
                     }
-                },
+                }
                 _ => {
                     current_token.push(ch);
                 }
@@ -77,12 +77,22 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
             ParseMode::DoubleQuote => match ch {
                 DOUBLE_QUOTE => mode = ParseMode::None,
                 BACKSLASH => {
-                    if let Some(next_ch) = chars_iter.next() {
-                        current_token.push(next_ch);
+                    // if let Some(next_ch) = chars_iter.next() {
+                    //     current_token.push(next_ch);
+                    // }
+                    if let Some(&next_ch) = chars_iter.peek() {
+                        if matches!(next_ch, '\\' | '"' | '$' | '`' | '\n') {
+                            chars_iter.next();
+                            if next_ch != '\n' {
+                                current_token.push(next_ch);
+                            }
+                        } else {
+                            current_token.push(ch);
+                        }
                     }
-                },
+                }
                 _ => current_token.push(ch),
-            }
+            },
         }
     }
 
