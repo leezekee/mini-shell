@@ -76,6 +76,11 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
             },
             ParseMode::DoubleQuote => match ch {
                 DOUBLE_QUOTE => mode = ParseMode::None,
+                BACKSLASH => {
+                    if let Some(next_ch) = chars_iter.next() {
+                        current_token.push(next_ch);
+                    }
+                },
                 _ => current_token.push(ch),
             }
         }
