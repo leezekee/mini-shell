@@ -29,6 +29,8 @@ pub enum ParseMode {
 
 const SINGLE_QUOTE: char = '\'';
 const DOUBLE_QUOTE: char = '\"';
+const BACKSLASH: char = '\\';
+const WHITESPACE: char = ' ';
 
 pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     if raw_command.is_empty() {
@@ -46,32 +48,42 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     let mut args: Vec<String> = Vec::new();
     let mut current_token = String::new();
     let mut mode = ParseMode::None;
-    for ch in v_command[1].chars() {
-        match ch {
-            SINGLE_QUOTE => match mode {
-                ParseMode::SingleQuote => mode = ParseMode::None,
-                ParseMode::None => mode = ParseMode::SingleQuote,
-                _ => current_token.push(ch),
-            },
-            DOUBLE_QUOTE => match mode {
-                ParseMode::DoubleQuote => mode = ParseMode::None,
-                _ => mode = ParseMode::DoubleQuote,
-            },
-            _ => {
-                if ch.is_whitespace() && mode == ParseMode::None {
+
+    let mut chars_iter = v_command[1].chars().peekable();
+    while let Some(ch) = chars_iter.next() {
+        match mode {
+            ParseMode::None => match ch {
+                SINGLE_QUOTE => mode = ParseMode::SingleQuote,
+                DOUBLE_QUOTE => mode = ParseMode::DoubleQuote,
+                BACKSLASH => {
+                    if let Some(next_ch) = chars_iter.next() {
+                        current_token.push(next_ch);
+                    }
+                },
+                WHITESPACE => {
                     if !current_token.is_empty() {
                         args.push(std::mem::take(&mut current_token));
+                        current_token.clear();
                     }
-                } else {
+                },
+                _ => {
                     current_token.push(ch);
                 }
+            },
+            ParseMode::SingleQuote => match ch {
+                SINGLE_QUOTE => mode = ParseMode::None,
+                _ => current_token.push(ch),
+            },
+            ParseMode::DoubleQuote => match ch {
+                DOUBLE_QUOTE => mode = ParseMode::None,
+                _ => current_token.push(ch),
             }
         }
     }
 
-    if mode != ParseMode::None {
-        return Err(ShellError::InvalidSyntax);
-    }
+    // if mode != ParseMode::None {
+    //     return Err(ShellError::InvalidSyntax);
+    // }
 
     args.push(std::mem::take(&mut current_token));
     Ok(ParsedCommand { command, args })
