@@ -1,43 +1,38 @@
-use crate::parse::{self, Arg, ParsedCommand};
-use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
-use std::process;
-use std::{env, fs};
+#![allow(unused_variables)]
+use crate::parse::{self, Arg, BuiltIn, ParsedCommand, RunTimeEnvPath};
+use crate::utils::*;
+use std::env;
+use std::path::Path;
 
-const BUILT_IN_COMMANDS: [&str; 4] = ["exit", "type", "echo", "pwd"];
-
-pub fn default(parsed_command: ParsedCommand) {
-    let paths = parse::get_env_path();
-    match search_file_in_paths(&parsed_command.command, &paths) {
-        Some(_) => execute_external(&parsed_command.command, parsed_command.args),
-        None => not_found(parsed_command),
-    }
+pub fn not_found(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
+    println!("{}: command not found", parsed_command.command);
 }
 
-pub fn echo(parsed_command: ParsedCommand) {
+pub fn echo(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
     println!("{}", parsed_command.args.join(" "));
 }
 
-pub fn _type(parsed_command: ParsedCommand) {
+pub fn _exit(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
+    std::process::exit(0)
+}
+
+pub fn _type(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
     let command = parsed_command.args.join(" ");
-    let paths = parse::get_env_path();
-    if BUILT_IN_COMMANDS.contains(&command.as_ref()) {
-        println!("{} is a shell builtin", command)
-    } else {
-        // search arguments in paths
-        match search_file_in_paths(&command, &paths) {
+    match command.parse::<BuiltIn>() {
+        Ok(cmd) => println!("{} is a shell builtin", cmd),
+        _ => match search_file_in_paths(&command, paths) {
             Some(path) => println!("{} is {}", command, path.display()),
             None => println!("{}: not found", command),
-        }
+        },
     }
 }
 
-pub fn pwd() {
+pub fn pwd(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
     let work_dir = env::current_dir().expect("");
     println!("{}", work_dir.display());
 }
 
-pub fn cd(parsed_command: ParsedCommand) {
+pub fn cd(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
     let mut target_dir: &Arg = &parsed_command.args[0];
     let home = parse::get_env_home();
     if target_dir == "~" {
@@ -48,39 +43,4 @@ pub fn cd(parsed_command: ParsedCommand) {
         Ok(_) => {}
         Err(_) => println!("cd: {}: No such file or directory", target_dir),
     }
-}
-
-// ================== private functions ==================
-
-fn search_file_in_paths(filename: &String, paths: &[String]) -> Option<PathBuf> {
-    paths.iter().find_map(|dir| {
-        let full_path = PathBuf::from(dir).join(filename);
-        if full_path.is_file() && is_executable(&full_path) {
-            Some(full_path)
-        } else {
-            None
-        }
-    })
-}
-
-fn is_executable(file_path: &PathBuf) -> bool {
-    match fs::metadata(file_path) {
-        Ok(metadata) => {
-            let mode = metadata.permissions().mode();
-            mode & 0o111 != 0
-        }
-        Err(_) => false,
-    }
-}
-
-fn not_found(parsed_command: ParsedCommand) {
-    println!("{}: command not found", parsed_command.command);
-}
-
-#[allow(unused_variables)]
-fn execute_external(program: &String, args: parse::Args) {
-    let status = process::Command::new(program)
-        .args(&args)
-        .status()
-        .expect("");
 }

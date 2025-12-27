@@ -1,9 +1,14 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
+
+use crate::parse::CommandHandler;
 pub mod command;
+pub mod error;
 pub mod parse;
+pub mod utils;
 
 fn main() {
+    let mut command_handler = CommandHandler::new();
     loop {
         print!("$ ");
         io::stdout().flush().unwrap();
@@ -14,13 +19,6 @@ fn main() {
             continue;
         }
         let command = parsed_command.unwrap();
-        match command.as_ref() {
-            "exit" => break,
-            "echo" => command::echo(command),
-            "type" => command::_type(command),
-            "pwd" => command::pwd(),
-            "cd" => command::cd(command),
-            _ => command::default(command),
-        }
+        command_handler.run(command);
     }
 }

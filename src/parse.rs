@@ -1,10 +1,18 @@
-use std::env;
+use std::{cell::RefCell, collections::HashMap, env, fmt::Display, rc::Rc, str::FromStr};
+
+use crate::{
+    command,
+    utils::{execute_external, search_file_in_paths},
+};
 
 pub type Command = String;
 pub type Arg = String;
 pub type Args = Vec<String>;
 pub type EnvPath = Vec<String>;
+pub type Handler = fn(ParsedCommand, RunTimeEnvPath);
+pub type RunTimeEnvPath = Rc<RefCell<EnvPath>>;
 
+#[derive(Clone)]
 pub struct ParsedCommand {
     pub command: Command,
     pub args: Args,
@@ -86,4 +94,98 @@ pub fn get_env_path() -> EnvPath {
 
 pub fn get_env_home<'a>() -> String {
     env::var("HOME").unwrap_or_default()
+}
+
+pub struct CommandHandler {
+    built_in_command: HashMap<BuiltIn, Handler>,
+    local_path: EnvPath,
+    temp_path: EnvPath,
+    runtime_path: RunTimeEnvPath,
+}
+
+#[derive(PartialEq, Debug, Clone, Copy, Hash, Eq)]
+pub enum BuiltIn {
+    ECHO,
+    EXIT,
+    CD,
+    PWD,
+    TYPE,
+}
+
+impl FromStr for BuiltIn {
+    type Err = crate::error::NotABuiltInCommand;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "echo" => Ok(BuiltIn::ECHO),
+            "exit" => Ok(BuiltIn::EXIT),
+            "cd" => Ok(BuiltIn::CD),
+            "pwd" => Ok(BuiltIn::PWD),
+            "type" => Ok(BuiltIn::TYPE),
+            _ => Err(crate::error::NotABuiltInCommand),
+        }
+    }
+}
+
+impl Display for BuiltIn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let output = format!("{:?}", self).to_lowercase();
+
+        write!(f, "{}", output)
+    }
+}
+
+impl CommandHandler {
+    pub fn new() -> CommandHandler {
+        let mut command_handler = CommandHandler {
+            built_in_command: HashMap::new(),
+            local_path: get_env_path(),
+            temp_path: Vec::new(),
+            runtime_path: Rc::new(RefCell::new(Vec::new())),
+        };
+
+        // register command
+        command_handler.register(BuiltIn::ECHO, command::echo);
+        command_handler.register(BuiltIn::EXIT, command::_exit);
+        command_handler.register(BuiltIn::CD, command::cd);
+        command_handler.register(BuiltIn::PWD, command::pwd);
+        command_handler.register(BuiltIn::TYPE, command::_type);
+
+        command_handler
+    }
+
+    fn register(&mut self, command: BuiltIn, handler: Handler) {
+        self.built_in_command.insert(command, handler);
+    }
+
+    fn get_runtime_path(&self) -> RunTimeEnvPath {
+        if self.runtime_path.borrow().is_empty() {
+            let mut rtp = self.runtime_path.borrow_mut();
+            *rtp = self
+                .local_path
+                .iter()
+                .chain(self.temp_path.iter())
+                .cloned()
+                .collect();
+        }
+        self.runtime_path.clone()
+    }
+
+    fn run_built_in_command(&self, command: BuiltIn, parsed_command: ParsedCommand) {
+        self.built_in_command.get(&command).unwrap()(parsed_command, self.get_runtime_path())
+    }
+
+    fn run_external_command(&self, parsed_command: ParsedCommand) {
+        match search_file_in_paths(&parsed_command.command, self.get_runtime_path()) {
+            Some(_) => execute_external(&parsed_command.command, parsed_command.args),
+            None => command::not_found(parsed_command, self.get_runtime_path()),
+        }
+    }
+
+    pub fn run(&mut self, parsed_command: ParsedCommand) {
+        match parsed_command.command.parse::<BuiltIn>() {
+            Ok(cmd) => self.run_built_in_command(cmd, parsed_command),
+            _ => self.run_external_command(parsed_command),
+        }
+        self.temp_path.clear();
+    }
 }
