@@ -29,8 +29,6 @@ fn exec_command(command_handler: &mut CommandHandler, raw_command: &mut String) 
         }
     }
 
-    println!("Command: {}", command.command);
-    println!("Args: {:?}", command.args);
     match command_handler.run(command) {
         Ok(_) => {}
         Err(e) => println!("{}", e),

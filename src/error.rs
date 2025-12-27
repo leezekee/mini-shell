@@ -7,7 +7,7 @@ use crate::parse::BuiltIn;
 pub enum ShellError {
     #[error("Not a builtin command")]
     NotABuiltinCommand,
-    #[error("{}: not found", {0})]
+    #[error("{0}: not found")]
     CommandNotFound(String),
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
