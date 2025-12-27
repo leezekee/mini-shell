@@ -103,7 +103,6 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     if !current_token.is_empty() {
         tokens.push(std::mem::take(&mut current_token));
     }
-    println!("{:?}", tokens);
     Ok(ParsedCommand { command: tokens[0].clone(), args: tokens[1..].to_vec() })
 }
 
