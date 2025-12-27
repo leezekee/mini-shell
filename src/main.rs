@@ -14,11 +14,18 @@ fn main() {
         io::stdout().flush().unwrap();
         let mut raw_command = String::new();
         io::stdin().read_line(&mut raw_command).unwrap();
-        let parsed_command = parse::parse(&mut raw_command);
-        if let None = parsed_command {
-            continue;
-        }
-        let command = parsed_command.unwrap();
-        command_handler.run(command);
+        exec_command(&mut command_handler, &mut raw_command);
+    }
+}
+
+fn exec_command(command_handler: &mut CommandHandler, raw_command: &mut String) {
+    let parsed_command = parse::parse(raw_command);
+    if let None = parsed_command {
+        return;
+    }
+    let command = parsed_command.unwrap();
+    match command_handler.run(command) {
+        Ok(_) => {}
+        Err(e) => println!("{}", e),
     }
 }

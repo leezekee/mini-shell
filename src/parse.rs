@@ -2,6 +2,7 @@ use std::{cell::RefCell, collections::HashMap, env, fmt::Display, rc::Rc, str::F
 
 use crate::{
     command,
+    error::ShellError,
     utils::{execute_external, search_file_in_paths},
 };
 
@@ -9,8 +10,9 @@ pub type Command = String;
 pub type Arg = String;
 pub type Args = Vec<String>;
 pub type EnvPath = Vec<String>;
-pub type Handler = fn(ParsedCommand, RunTimeEnvPath);
+pub type Handler = fn(ParsedCommand, RunTimeEnvPath) -> ShellResult;
 pub type RunTimeEnvPath = Rc<RefCell<EnvPath>>;
+pub type ShellResult = Result<i32, ShellError>;
 
 #[derive(Clone)]
 pub struct ParsedCommand {
@@ -18,46 +20,54 @@ pub struct ParsedCommand {
     pub args: Args,
 }
 
+#[derive(PartialEq)]
+pub enum ParseMode {
+    SingleQuote,
+    DoubleQuote,
+    None,
+}
+
+const SINGLE_QUOTE: char = '\'';
+const DOUBLE_QUOTE: char = '\"';
+
 pub fn parse(raw_command: &mut String) -> Option<ParsedCommand> {
     let v_command: Vec<&str> = raw_command.trim().splitn(2, " ").collect();
     let command = String::from(v_command[0]);
+
+    // no arguments
     if v_command.len() == 1 {
         let args: Args = Vec::new();
         return Some(ParsedCommand { command, args });
     }
-    let arg_str = v_command[1];
-    let arg_string = String::from(arg_str);
+
     let mut args: Vec<String> = Vec::new();
-    let mut in_single_quote = false;
-    let mut has_token_start = false;
     let mut current_token = String::new();
-    for ch in arg_string.chars() {
+    let mut mode = ParseMode::None;
+    for ch in v_command[1].chars() {
         match ch {
-            '\'' => {
-                in_single_quote = !in_single_quote;
-                has_token_start = true;
-            }
-            ch if ch.is_whitespace() => {
-                if in_single_quote {
-                    current_token.push(ch);
-                } else {
-                    if has_token_start {
-                        if !current_token.is_empty() {
-                            args.push(current_token);
-                        }
-                        current_token = String::new();
-                        has_token_start = false;
-                    }
-                }
-            }
+            SINGLE_QUOTE => match mode {
+                ParseMode::SingleQuote => mode = ParseMode::None,
+                ParseMode::None => mode = ParseMode::SingleQuote,
+                _ => current_token.push(ch),
+            },
+            DOUBLE_QUOTE => match mode {
+                ParseMode::DoubleQuote => mode = ParseMode::None,
+                _ => mode = ParseMode::DoubleQuote,
+            },
             _ => {
-                current_token.push(ch);
-                has_token_start = true;
+                if ch.is_whitespace() && mode == ParseMode::None {
+                    if !current_token.is_empty() {
+                        args.push(std::mem::take(&mut current_token));
+                    }
+                } else {
+                    current_token.push(ch);
+                }
             }
         }
     }
-    if !current_token.is_empty() {
-        args.push(current_token);
+
+    if !current_token.is_empty() && mode != ParseMode::None {
+        return None;
     }
 
     Some(ParsedCommand { command, args })
@@ -113,7 +123,7 @@ pub enum BuiltIn {
 }
 
 impl FromStr for BuiltIn {
-    type Err = crate::error::NotABuiltInCommand;
+    type Err = ShellError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "echo" => Ok(BuiltIn::ECHO),
@@ -121,7 +131,7 @@ impl FromStr for BuiltIn {
             "cd" => Ok(BuiltIn::CD),
             "pwd" => Ok(BuiltIn::PWD),
             "type" => Ok(BuiltIn::TYPE),
-            _ => Err(crate::error::NotABuiltInCommand),
+            _ => Err(ShellError::NotABuiltinCommand),
         }
     }
 }
@@ -159,33 +169,35 @@ impl CommandHandler {
 
     fn get_runtime_path(&self) -> RunTimeEnvPath {
         if self.runtime_path.borrow().is_empty() {
-            let mut rtp = self.runtime_path.borrow_mut();
-            *rtp = self
+            let mut runtime_path = self.runtime_path.borrow_mut();
+            *runtime_path = self
                 .local_path
                 .iter()
                 .chain(self.temp_path.iter())
                 .cloned()
                 .collect();
         }
+        println!("{:?}", self.runtime_path.borrow());
         self.runtime_path.clone()
     }
 
-    fn run_built_in_command(&self, command: BuiltIn, parsed_command: ParsedCommand) {
+    fn run_built_in_command(&self, command: BuiltIn, parsed_command: ParsedCommand) -> ShellResult {
         self.built_in_command.get(&command).unwrap()(parsed_command, self.get_runtime_path())
     }
 
-    fn run_external_command(&self, parsed_command: ParsedCommand) {
+    fn run_external_command(&self, parsed_command: ParsedCommand) -> ShellResult {
         match search_file_in_paths(&parsed_command.command, self.get_runtime_path()) {
             Some(_) => execute_external(&parsed_command.command, parsed_command.args),
-            None => command::not_found(parsed_command, self.get_runtime_path()),
+            None => return Err(ShellError::CommandNotFound(parsed_command.command)),
         }
     }
 
-    pub fn run(&mut self, parsed_command: ParsedCommand) {
-        match parsed_command.command.parse::<BuiltIn>() {
+    pub fn run(&mut self, parsed_command: ParsedCommand) -> ShellResult {
+        let result: ShellResult = match parsed_command.command.parse::<BuiltIn>() {
             Ok(cmd) => self.run_built_in_command(cmd, parsed_command),
             _ => self.run_external_command(parsed_command),
-        }
+        };
         self.temp_path.clear();
+        result
     }
 }

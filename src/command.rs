@@ -1,5 +1,6 @@
 #![allow(unused_variables)]
-use crate::parse::{self, Arg, BuiltIn, ParsedCommand, RunTimeEnvPath};
+use crate::error::ShellError;
+use crate::parse::{self, Arg, BuiltIn, ParsedCommand, RunTimeEnvPath, ShellResult};
 use crate::utils::*;
 use std::env;
 use std::path::Path;
@@ -8,31 +9,39 @@ pub fn not_found(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
     println!("{}: command not found", parsed_command.command);
 }
 
-pub fn echo(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
+pub fn echo(parsed_command: ParsedCommand, paths: RunTimeEnvPath) -> ShellResult {
     println!("{}", parsed_command.args.join(" "));
+    return Ok(1);
 }
 
-pub fn _exit(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
+pub fn _exit(parsed_command: ParsedCommand, paths: RunTimeEnvPath) -> ShellResult {
     std::process::exit(0)
 }
 
-pub fn _type(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
+pub fn _type(parsed_command: ParsedCommand, paths: RunTimeEnvPath) -> ShellResult {
     let command = parsed_command.args.join(" ");
     match command.parse::<BuiltIn>() {
-        Ok(cmd) => println!("{} is a shell builtin", cmd),
+        Ok(cmd) => {
+            println!("{} is a shell builtin", cmd);
+            Ok(1)
+        }
         _ => match search_file_in_paths(&command, paths) {
-            Some(path) => println!("{} is {}", command, path.display()),
-            None => println!("{}: not found", command),
+            Some(path) => {
+                println!("{} is {}", command, path.display());
+                Ok(1)
+            }
+            None => Err(ShellError::CommandNotFound(command)),
         },
     }
 }
 
-pub fn pwd(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
+pub fn pwd(parsed_command: ParsedCommand, paths: RunTimeEnvPath) -> ShellResult {
     let work_dir = env::current_dir().expect("");
     println!("{}", work_dir.display());
+    return Ok(1);
 }
 
-pub fn cd(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
+pub fn cd(parsed_command: ParsedCommand, paths: RunTimeEnvPath) -> ShellResult {
     let mut target_dir: &Arg = &parsed_command.args[0];
     let home = parse::get_env_home();
     if target_dir == "~" {
@@ -40,7 +49,10 @@ pub fn cd(parsed_command: ParsedCommand, paths: RunTimeEnvPath) {
     }
     let path = Path::new(&target_dir);
     match env::set_current_dir(path) {
-        Ok(_) => {}
-        Err(_) => println!("cd: {}: No such file or directory", target_dir),
+        Ok(_) => Ok(1),
+        Err(_) => Err(ShellError::DirectoryNotExist {
+            cmd: BuiltIn::CD,
+            dir: target_dir.to_string(),
+        }),
     }
 }
