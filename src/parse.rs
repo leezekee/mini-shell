@@ -31,25 +31,29 @@ const SINGLE_QUOTE: char = '\'';
 const DOUBLE_QUOTE: char = '\"';
 const BACKSLASH: char = '\\';
 const WHITESPACE: char = ' ';
+const NEWLINE: char = '\n';
+const DOLLAR: char = '$';
+const BACKTICK: char = '`';
 
 pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     if raw_command.is_empty() {
         return Err(ShellError::NullInput);
     }
-    let v_command: Vec<&str> = raw_command.trim().splitn(2, " ").collect();
-    let command = String::from(v_command[0]);
+    // let v_command: Vec<&str> = raw_command.trim().splitn(2, " ").collect();
+    // let command = String::from(v_command[0]);
 
-    // no arguments
-    if v_command.len() == 1 {
-        let args: Args = Vec::new();
-        return Ok(ParsedCommand { command, args });
-    }
+    // // no arguments
+    // if v_command.len() == 1 {
+    //     let args: Args = Vec::new();
+    //     return Ok(ParsedCommand { command, args });
+    // }
 
-    let mut args: Vec<String> = Vec::new();
+    let mut tokens: Vec<String> = Vec::new();
     let mut current_token = String::new();
     let mut mode = ParseMode::None;
+    
 
-    let mut chars_iter = v_command[1].chars().peekable();
+    let mut chars_iter = raw_command.chars().peekable();
     while let Some(ch) = chars_iter.next() {
         match mode {
             ParseMode::None => match ch {
@@ -62,11 +66,14 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                 }
                 WHITESPACE => {
                     if !current_token.is_empty() {
-                        args.push(std::mem::take(&mut current_token));
+                        tokens.push(std::mem::take(&mut current_token));
                         current_token.clear();
                     }
                 }
                 _ => {
+                    if ch == NEWLINE {
+                        break;
+                    }
                     current_token.push(ch);
                 }
             },
@@ -77,13 +84,10 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
             ParseMode::DoubleQuote => match ch {
                 DOUBLE_QUOTE => mode = ParseMode::None,
                 BACKSLASH => {
-                    // if let Some(next_ch) = chars_iter.next() {
-                    //     current_token.push(next_ch);
-                    // }
                     if let Some(&next_ch) = chars_iter.peek() {
-                        if matches!(next_ch, '\\' | '"' | '$' | '`' | '\n') {
+                        if matches!(next_ch, BACKSLASH | DOUBLE_QUOTE | DOLLAR | BACKTICK | NEWLINE) {
                             chars_iter.next();
-                            if next_ch != '\n' {
+                            if next_ch != NEWLINE {
                                 current_token.push(next_ch);
                             }
                         } else {
@@ -96,12 +100,11 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
         }
     }
 
-    // if mode != ParseMode::None {
-    //     return Err(ShellError::InvalidSyntax);
-    // }
-
-    args.push(std::mem::take(&mut current_token));
-    Ok(ParsedCommand { command, args })
+    if !current_token.is_empty() {
+        tokens.push(std::mem::take(&mut current_token));
+    }
+    println!("{:?}", tokens);
+    Ok(ParsedCommand { command: tokens[0].clone(), args: tokens[1..].to_vec() })
 }
 
 impl<'a> PartialEq<&str> for ParsedCommand {
