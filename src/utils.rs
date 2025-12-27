@@ -31,19 +31,8 @@ pub fn not_found(parsed_command: ParsedCommand) {
 }
 
 pub fn execute_external(program: &String, args: Args) -> ShellResult {
-    let status = process::Command::new(program)
-        .args(&args)
-        .status()
-        .map_err(|e| ShellError::ProcessStartError {
-            cmd: program.to_string(),
-            source: e,
-        })?;
-    if !status.success() {
-        return Err(ShellError::ProcessExitError {
-            cmd: program.to_string(),
-            code: status.code().unwrap_or(-1),
-        });
+    match process::Command::new(program).args(&args).status() {
+        Ok(_) => Ok(1),
+        _ => Err(ShellError::ExecuteError(program.to_string())),
     }
-
-    Ok(1)
 }

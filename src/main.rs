@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 
-use crate::parse::CommandHandler;
+use crate::parse::{CommandHandler, ParsedCommand};
 pub mod command;
 pub mod error;
 pub mod parse;
@@ -20,10 +20,17 @@ fn main() {
 
 fn exec_command(command_handler: &mut CommandHandler, raw_command: &mut String) {
     let parsed_command = parse::parse(raw_command);
-    if let None = parsed_command {
-        return;
+    let command: ParsedCommand;
+    match parsed_command {
+        Ok(cmd) => command = cmd,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
     }
-    let command = parsed_command.unwrap();
+
+    println!("Command: {}", command.command);
+    println!("Args: {:?}", command.args);
     match command_handler.run(command) {
         Ok(_) => {}
         Err(e) => println!("{}", e),

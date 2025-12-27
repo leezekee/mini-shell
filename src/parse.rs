@@ -14,7 +14,7 @@ pub type Handler = fn(ParsedCommand, RunTimeEnvPath) -> ShellResult;
 pub type RunTimeEnvPath = Rc<RefCell<EnvPath>>;
 pub type ShellResult = Result<i32, ShellError>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ParsedCommand {
     pub command: Command,
     pub args: Args,
@@ -30,14 +30,17 @@ pub enum ParseMode {
 const SINGLE_QUOTE: char = '\'';
 const DOUBLE_QUOTE: char = '\"';
 
-pub fn parse(raw_command: &mut String) -> Option<ParsedCommand> {
+pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
+    if raw_command.is_empty() {
+        return Err(ShellError::NullInput);
+    }
     let v_command: Vec<&str> = raw_command.trim().splitn(2, " ").collect();
     let command = String::from(v_command[0]);
 
     // no arguments
     if v_command.len() == 1 {
         let args: Args = Vec::new();
-        return Some(ParsedCommand { command, args });
+        return Ok(ParsedCommand { command, args });
     }
 
     let mut args: Vec<String> = Vec::new();
@@ -66,11 +69,12 @@ pub fn parse(raw_command: &mut String) -> Option<ParsedCommand> {
         }
     }
 
-    if !current_token.is_empty() && mode != ParseMode::None {
-        return None;
+    if mode != ParseMode::None {
+        return Err(ShellError::InvalidSyntax);
     }
 
-    Some(ParsedCommand { command, args })
+    args.push(std::mem::take(&mut current_token));
+    Ok(ParsedCommand { command, args })
 }
 
 impl<'a> PartialEq<&str> for ParsedCommand {
@@ -177,7 +181,7 @@ impl CommandHandler {
                 .cloned()
                 .collect();
         }
-        println!("{:?}", self.runtime_path.borrow());
+        // println!("{:?}", self.runtime_path.borrow());
         self.runtime_path.clone()
     }
 

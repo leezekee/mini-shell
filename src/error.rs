@@ -19,9 +19,18 @@ pub enum ShellError {
         source: io::Error,
     },
 
+    #[error("{}: execute failed", {0})]
+    ExecuteError(String),
+
     #[error("Command '{cmd}' failed with exit code {code}")]
     ProcessExitError { cmd: String, code: i32 },
 
     #[error("{cmd}: {dir}: No such file or directory")]
     DirectoryNotExist { cmd: BuiltIn, dir: String },
+
+    #[error("Invalid syntax!")]
+    InvalidSyntax,
+
+    #[error("")]
+    NullInput,
 }
