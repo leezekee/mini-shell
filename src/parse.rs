@@ -75,9 +75,14 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                 DOUBLE_QUOTE => mode = ParseMode::None,
                 BACKSLASH => {
                     if let Some(&next_ch) = chars_iter.peek() {
-                        if matches!(next_ch, BACKSLASH | DOUBLE_QUOTE | DOLLAR | BACKTICK) {
+                        if matches!(
+                            next_ch,
+                            BACKSLASH | DOUBLE_QUOTE | DOLLAR | BACKTICK | NEWLINE
+                        ) {
                             chars_iter.next();
-                            current_token.push(next_ch);
+                            if next_ch != NEWLINE {
+                                current_token.push(next_ch);
+                            }
                         } else {
                             current_token.push(ch);
                         }
