@@ -35,7 +35,8 @@ const NEWLINE: char = '\n';
 const DOLLAR: char = '$';
 const BACKTICK: char = '`';
 const REDIRECT: char = '>';
-const UNIX_REDIRECT: char = '1';
+const UNIX_STDOUT_REDIRECT: char = '1';
+const UNIX_STDERR_REDIRECT: char = '2';
 
 pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     if raw_command.is_empty() {
@@ -44,8 +45,8 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     let mut tokens: Vec<String> = Vec::new();
     let mut current_token = String::new();
     let mut mode = ParseMode::None;
-    let mut is_redirected = false;
-
+    let mut stdout_redirected = false;
+    let mut stderr_redirected = false;
     let mut chars_iter = raw_command.chars().peekable();
     let mut redirect_stdout = String::new();
     let mut redirect_stderr = String::new();
@@ -61,8 +62,10 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                 }
                 WHITESPACE => {
                     if !current_token.is_empty() {
-                        if is_redirected {
+                        if stdout_redirected {
                             redirect_stdout = std::mem::take(&mut current_token);
+                        } else if stderr_redirected {
+                            redirect_stderr = std::mem::take(&mut current_token);
                         } else {
                             tokens.push(std::mem::take(&mut current_token));
                         }
@@ -70,11 +73,19 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                     }
                 }
                 REDIRECT =>  {
-                    is_redirected = true;
+                    stdout_redirected = true;
                 } 
-                UNIX_REDIRECT => {
+                UNIX_STDOUT_REDIRECT => {
                     if let Some(&next_ch) = chars_iter.peek() && next_ch == REDIRECT {
-                        is_redirected = true;
+                        stdout_redirected = true;
+                        chars_iter.next();
+                    } else {
+                        current_token.push(ch);
+                    }
+                }
+                 UNIX_STDERR_REDIRECT => {
+                    if let Some(&next_ch) = chars_iter.peek() && next_ch == REDIRECT {
+                        stderr_redirected = true;
                         chars_iter.next();
                     } else {
                         current_token.push(ch);
@@ -114,12 +125,13 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     }
 
     if !current_token.is_empty() {
-        if is_redirected {
+        if stdout_redirected {
             redirect_stdout = std::mem::take(&mut current_token);
+        } else if stderr_redirected {
+            redirect_stderr = std::mem::take(&mut current_token);
         } else {
-            tokens.push(std::mem::take(&mut current_token)); 
+            tokens.push(std::mem::take(&mut current_token));
         }
-
     }
     Ok(ParsedCommand {
         command: tokens[0].clone(),

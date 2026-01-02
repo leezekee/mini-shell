@@ -1,7 +1,7 @@
 use crate::error::ShellError;
-use crate::parse::{Args, ParsedCommand, RunTimeEnvPath, ShellResult};
+use crate::parse::{Args, RunTimeEnvPath, ShellResult};
 use crate::shellio::{IOHandler, IOMode};
-use std::fs::{self, File};
+use std::fs::{self, OpenOptions};
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::{self, Stdio};
@@ -31,7 +31,11 @@ pub fn execute_external(program: &String, args: Args, io_handler: &IOHandler) ->
     let out = match io_handler.stdout_mode {
         IOMode::INHERIT => Stdio::inherit(),
         IOMode::FILE => {
-            let file_handle = File::create(io_handler.stdout_redirect_path.clone())?;
+            // let file_handle = File::create(io_handler.stdout_redirect_path.clone())?;
+            let file_handle = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(io_handler.stdout_redirect_path.clone())?;
             Stdio::from(file_handle)
         }
         _ => Stdio::null(),
@@ -39,7 +43,12 @@ pub fn execute_external(program: &String, args: Args, io_handler: &IOHandler) ->
     let err = match io_handler.stderr_mode {
         IOMode::INHERIT => Stdio::inherit(),
         IOMode::FILE => {
-            let file_handle = File::create(io_handler.stderr_redirect_path.clone())?;
+            // let file_handle = File::create(io_handler.stderr_redirect_path.clone())?;
+            let file_handle = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(io_handler.stderr_redirect_path.clone())?;
+
             Stdio::from(file_handle)
         }
         _ => Stdio::null(),

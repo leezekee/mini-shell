@@ -112,6 +112,10 @@ impl IOHandler {
     }
 
     pub fn stderr(&self, args: fmt::Arguments) {
+        IOHandler::debug(format_args!(
+            "stderr param: path: {:?}, mode: {:?}",
+            self.stderr_redirect_path, self.stderr_mode
+        ));
         match self.stderr_mode {
             IOMode::FILE => {
                 let file_result = OpenOptions::new()
@@ -165,9 +169,10 @@ impl IOHandler {
     }
 
     fn _out(level: OutLevel, args: fmt::Arguments) {
-        if level > Self::OUT_LEVEL {
-            let _ = io::stdout().write_fmt(args);
-            println!();
+        if level < Self::OUT_LEVEL {
+            return;
         }
+        let _ = io::stdout().write_fmt(args);
+        println!();
     }
 }
