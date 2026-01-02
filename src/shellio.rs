@@ -91,8 +91,6 @@ impl IOHandler {
                     .append(true)
                     .open(&self.stdout_redirect_path);
 
-                println!("File result: {:?}", file_result);
-
                 if let Ok(mut file) = file_result {
                     let _ = file.write_fmt(args);
                     let _ = writeln!(file);
