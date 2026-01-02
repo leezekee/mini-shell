@@ -40,15 +40,19 @@ fn exec_command(command_handler: &mut CommandHandler, io_handler: &mut IOHandler
         }
     }
     IOHandler::debug(format_args!("{:?}", command));
+    let c_command = command.clone();
     if !command.stdout.is_empty() {
-        io_handler.stdout_mode = shellio::IOMode::FILE;
-        io_handler.stdout_redirect_path = command.stdout.clone();
+        io_handler.set_stdout_file(
+            &mut c_command.stdout.clone(),
+            &c_command.stdout_mode.unwrap(),
+        );
     }
 
     if !command.stderr.is_empty() {
-        // io_handler.stderr_mode = shellio::IOMode::FILE;
-        // io_handler.stderr_redirect_path = command.stderr.clone();
-        io_handler.set_stderr_file(&mut command.stderr.clone());
+        io_handler.set_stderr_file(
+            &mut c_command.stderr.clone(),
+            &c_command.stderr_mode.as_ref().unwrap(),
+        );
     }
 
     match command_handler.run(command, io_handler) {

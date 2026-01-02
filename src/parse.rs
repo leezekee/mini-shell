@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, env, fmt::Display, rc::Rc, str::FromStr};
 
 use crate::{
-    command, error::ShellError, shellio::IOHandler, utils::{execute_external, search_file_in_paths}
+    command, error::ShellError, shellio::{IOHandler, OutMode}, utils::{execute_external, search_file_in_paths}
 };
 
 pub type Command = String;
@@ -18,6 +18,8 @@ pub struct ParsedCommand {
     pub args: Args,
     pub stdout: String,
     pub stderr: String,
+    pub stdout_mode: Option<OutMode>,
+    pub stderr_mode: Option<OutMode>
 }
 
 #[derive(PartialEq)]
@@ -50,6 +52,8 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     let mut chars_iter = raw_command.chars().peekable();
     let mut redirect_stdout = String::new();
     let mut redirect_stderr = String::new();
+    let mut stdout_redirect_mode :Option<OutMode> = None;
+    let mut stderr_redirect_mode :Option<OutMode> = None;
     while let Some(ch) = chars_iter.next() {
         match mode {
             ParseMode::None => match ch {
@@ -79,6 +83,12 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                     if let Some(&next_ch) = chars_iter.peek() && next_ch == REDIRECT {
                         stdout_redirected = true;
                         chars_iter.next();
+                        if let Some(&next2ch) = chars_iter.peek() && next2ch == REDIRECT {
+                            stdout_redirect_mode = Some(OutMode::APPEND);
+                            chars_iter.next();
+                        } else {
+                            stdout_redirect_mode = Some(OutMode::WRITE);
+                        }
                     } else {
                         current_token.push(ch);
                     }
@@ -87,6 +97,12 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                     if let Some(&next_ch) = chars_iter.peek() && next_ch == REDIRECT {
                         stderr_redirected = true;
                         chars_iter.next();
+                        if let Some(&next2ch) = chars_iter.peek() && next2ch == REDIRECT {
+                            stderr_redirect_mode = Some(OutMode::APPEND);
+                            chars_iter.next();
+                        } else {
+                            stderr_redirect_mode = Some(OutMode::WRITE);
+                        }
                     } else {
                         current_token.push(ch);
                     }
@@ -138,6 +154,8 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
         args: tokens[1..].to_vec(),
         stdout: redirect_stdout,
         stderr: redirect_stderr,
+        stdout_mode: stdout_redirect_mode,
+        stderr_mode: stderr_redirect_mode,
     })
 }
 

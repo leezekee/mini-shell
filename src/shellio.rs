@@ -1,7 +1,6 @@
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
-use std::path::Path;
 use std::process::Stdio;
 
 #[derive(Debug)]
@@ -20,6 +19,12 @@ pub enum OutLevel {
     ERROR,
 }
 
+#[derive(Debug, Clone)]
+pub enum OutMode {
+    WRITE,
+    APPEND,
+}
+
 pub type PipeHandler = Option<Stdio>;
 
 #[derive(Debug)]
@@ -35,6 +40,9 @@ pub struct IOHandler {
     pub stdin_pipe: PipeHandler,
     pub stdout_pipe: PipeHandler,
     pub stderr_pipe: PipeHandler,
+
+    pub stdout_file_mode: Option<OutMode>,
+    pub stderr_file_mode: Option<OutMode>,
 }
 
 impl IOHandler {
@@ -51,6 +59,8 @@ impl IOHandler {
             stdin_pipe: None,
             stdout_pipe: None,
             stderr_pipe: None,
+            stdout_file_mode: None,
+            stderr_file_mode: None,
         }
     }
 
@@ -142,15 +152,53 @@ impl IOHandler {
         }
     }
 
-    pub fn set_stderr_file(&mut self, stderr_path: &mut String) {
+    pub fn set_stderr_file(&mut self, stderr_path: &mut String, mode: &OutMode) {
         self.stderr_mode = IOMode::FILE;
         self.stderr_redirect_path = std::mem::take(stderr_path);
 
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(self.stderr_redirect_path.clone())
-            .unwrap();
+        let mut file: File;
+
+        match mode {
+            OutMode::APPEND => {
+                file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(self.stderr_redirect_path.clone())
+                    .unwrap();
+            }
+            OutMode::WRITE => {
+                file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .open(self.stderr_redirect_path.clone())
+                    .unwrap();
+            }
+        }
+        let _ = file.write("".as_bytes());
+    }
+
+    pub fn set_stdout_file(&mut self, stdout_path: &mut String, mode: &OutMode) {
+        self.stdout_mode = IOMode::FILE;
+        self.stdout_redirect_path = std::mem::take(stdout_path);
+
+        let mut file: File;
+
+        match mode {
+            OutMode::APPEND => {
+                file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(self.stdout_redirect_path.clone())
+                    .unwrap();
+            }
+            OutMode::WRITE => {
+                file = OpenOptions::new()
+                    .create(true)
+                    .write(true)
+                    .open(self.stdout_redirect_path.clone())
+                    .unwrap();
+            }
+        }
         let _ = file.write("".as_bytes());
     }
 
