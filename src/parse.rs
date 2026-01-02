@@ -1,16 +1,14 @@
 use std::{cell::RefCell, collections::HashMap, env, fmt::Display, rc::Rc, str::FromStr};
 
 use crate::{
-    command,
-    error::ShellError,
-    utils::{execute_external, search_file_in_paths},
+    command, error::ShellError, shellio::IOHandler, utils::{execute_external, search_file_in_paths}
 };
 
 pub type Command = String;
 pub type Arg = String;
 pub type Args = Vec<String>;
 pub type EnvPath = Vec<String>;
-pub type Handler = fn(ParsedCommand, RunTimeEnvPath) -> ShellResult;
+pub type Handler = fn(ParsedCommand, RunTimeEnvPath, &IOHandler) -> ShellResult;
 pub type RunTimeEnvPath = Rc<RefCell<EnvPath>>;
 pub type ShellResult = Result<i32, ShellError>;
 
@@ -18,6 +16,8 @@ pub type ShellResult = Result<i32, ShellError>;
 pub struct ParsedCommand {
     pub command: Command,
     pub args: Args,
+    pub stdout: String,
+    pub stderr: String,
 }
 
 #[derive(PartialEq)]
@@ -34,6 +34,8 @@ const WHITESPACE: char = ' ';
 const NEWLINE: char = '\n';
 const DOLLAR: char = '$';
 const BACKTICK: char = '`';
+const REDIRECT: char = '>';
+const UNIX_REDIRECT: char = '1';
 
 pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     if raw_command.is_empty() {
@@ -42,8 +44,11 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     let mut tokens: Vec<String> = Vec::new();
     let mut current_token = String::new();
     let mut mode = ParseMode::None;
+    let mut is_redirected = false;
 
     let mut chars_iter = raw_command.chars().peekable();
+    let mut redirect_stdout = String::new();
+    let mut redirect_stderr = String::new();
     while let Some(ch) = chars_iter.next() {
         match mode {
             ParseMode::None => match ch {
@@ -56,8 +61,23 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                 }
                 WHITESPACE => {
                     if !current_token.is_empty() {
-                        tokens.push(std::mem::take(&mut current_token));
+                        if is_redirected {
+                            redirect_stdout = std::mem::take(&mut current_token);
+                        } else {
+                            tokens.push(std::mem::take(&mut current_token));
+                        }
                         current_token.clear();
+                    }
+                }
+                REDIRECT =>  {
+                    is_redirected = true;
+                } 
+                UNIX_REDIRECT => {
+                    if let Some(&next_ch) = chars_iter.peek() && next_ch == REDIRECT {
+                        is_redirected = true;
+                        chars_iter.next();
+                    } else {
+                        current_token.push(ch);
                     }
                 }
                 _ => {
@@ -94,11 +114,18 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
     }
 
     if !current_token.is_empty() {
-        tokens.push(std::mem::take(&mut current_token));
+        if is_redirected {
+            redirect_stdout = std::mem::take(&mut current_token);
+        } else {
+            tokens.push(std::mem::take(&mut current_token)); 
+        }
+
     }
     Ok(ParsedCommand {
         command: tokens[0].clone(),
         args: tokens[1..].to_vec(),
+        stdout: redirect_stdout,
+        stderr: redirect_stderr,
     })
 }
 
@@ -210,21 +237,21 @@ impl CommandHandler {
         self.runtime_path.clone()
     }
 
-    fn run_built_in_command(&self, command: BuiltIn, parsed_command: ParsedCommand) -> ShellResult {
-        self.built_in_command.get(&command).unwrap()(parsed_command, self.get_runtime_path())
+    fn run_built_in_command(&self, command: BuiltIn, parsed_command: ParsedCommand, io_handler: &IOHandler) -> ShellResult {
+        self.built_in_command.get(&command).unwrap()(parsed_command, self.get_runtime_path(), io_handler)
     }
 
-    fn run_external_command(&self, parsed_command: ParsedCommand) -> ShellResult {
+    fn run_external_command(&self, parsed_command: ParsedCommand, io_handler: &IOHandler) -> ShellResult {
         match search_file_in_paths(&parsed_command.command, self.get_runtime_path()) {
-            Some(_) => execute_external(&parsed_command.command, parsed_command.args),
+            Some(_) => execute_external(&parsed_command.command, parsed_command.args, io_handler),
             None => return Err(ShellError::CommandNotFound(parsed_command.command)),
         }
     }
 
-    pub fn run(&mut self, parsed_command: ParsedCommand) -> ShellResult {
+    pub fn run(&mut self, parsed_command: ParsedCommand, io_handler: &mut IOHandler) -> ShellResult {
         let result: ShellResult = match parsed_command.command.parse::<BuiltIn>() {
-            Ok(cmd) => self.run_built_in_command(cmd, parsed_command),
-            _ => self.run_external_command(parsed_command),
+            Ok(cmd) => self.run_built_in_command(cmd, parsed_command, io_handler),
+            _ => self.run_external_command(parsed_command, io_handler),
         };
         self.temp_path.clear();
         result
