@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Write};
+use std::path::Path;
 use std::process::Stdio;
 
 #[derive(Debug)]
@@ -139,6 +140,15 @@ impl IOHandler {
             IOMode::PIPED => {}
             IOMode::NULL => {}
         }
+    }
+
+    pub fn set_stderr_file(&mut self, stderr_path: &mut String) {
+        self.stderr_mode = IOMode::FILE;
+        self.stderr_redirect_path = std::mem::take(stderr_path);
+
+        let _ = OpenOptions::new()
+            .create(true)
+            .open(self.stderr_redirect_path.clone());
     }
 
     pub fn reset(&mut self) {

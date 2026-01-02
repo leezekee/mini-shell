@@ -46,8 +46,9 @@ fn exec_command(command_handler: &mut CommandHandler, io_handler: &mut IOHandler
     }
 
     if !command.stderr.is_empty() {
-        io_handler.stderr_mode = shellio::IOMode::FILE;
-        io_handler.stderr_redirect_path = command.stderr.clone();
+        // io_handler.stderr_mode = shellio::IOMode::FILE;
+        // io_handler.stderr_redirect_path = command.stderr.clone();
+        io_handler.set_stderr_file(&mut command.stderr.clone());
     }
 
     match command_handler.run(command, io_handler) {
