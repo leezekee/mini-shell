@@ -84,10 +84,6 @@ impl IOHandler {
     }
 
     pub fn stdout(&self, args: fmt::Arguments) {
-        println!(
-            "current mode: {:?}, path: {:?}",
-            self.stdout_mode, self.stdout_redirect_path
-        );
         match self.stdout_mode {
             IOMode::FILE => {
                 let file_result = OpenOptions::new()
@@ -118,10 +114,6 @@ impl IOHandler {
     }
 
     pub fn stderr(&self, args: fmt::Arguments) {
-        println!(
-            "current stderr : {:?} path : {:?}",
-            self.stderr_mode, self.stderr_redirect_path
-        );
         match self.stderr_mode {
             IOMode::FILE => {
                 let file_result = OpenOptions::new()
@@ -175,7 +167,7 @@ impl IOHandler {
     }
 
     fn _out(level: OutLevel, args: fmt::Arguments) {
-        if level < Self::OUT_LEVEL {
+        if level > Self::OUT_LEVEL {
             let _ = io::stdout().write_fmt(args);
             println!();
         }
