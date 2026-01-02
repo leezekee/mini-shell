@@ -146,9 +146,12 @@ impl IOHandler {
         self.stderr_mode = IOMode::FILE;
         self.stderr_redirect_path = std::mem::take(stderr_path);
 
-        let _ = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .create(true)
-            .open(self.stderr_redirect_path.clone());
+            .append(true)
+            .open(self.stderr_redirect_path.clone())
+            .unwrap();
+        let _ = file.write("".as_bytes());
     }
 
     pub fn reset(&mut self) {
