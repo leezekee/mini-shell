@@ -51,7 +51,7 @@ fn exec_command(command_handler: &mut CommandHandler, io_handler: &mut IOHandler
     if !command.stderr.is_empty() {
         io_handler.set_stderr_file(
             &mut c_command.stderr.clone(),
-            &c_command.stderr_mode.as_ref().unwrap(),
+            &c_command.stderr_mode.unwrap(),
         );
     }
 

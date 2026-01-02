@@ -68,8 +68,10 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                     if !current_token.is_empty() {
                         if stdout_redirected {
                             redirect_stdout = std::mem::take(&mut current_token);
+                            stdout_redirected = false;
                         } else if stderr_redirected {
                             redirect_stderr = std::mem::take(&mut current_token);
+                            stderr_redirected = false;
                         } else {
                             tokens.push(std::mem::take(&mut current_token));
                         }
@@ -78,6 +80,12 @@ pub fn parse(raw_command: &mut String) -> Result<ParsedCommand, ShellError> {
                 }
                 REDIRECT =>  {
                     stdout_redirected = true;
+                    if let Some(&next_ch) = chars_iter.peek() && next_ch == REDIRECT {
+                        stdout_redirect_mode = Some(OutMode::APPEND);
+                        chars_iter.next();
+                    } else {
+                        stdout_redirect_mode = Some(OutMode::WRITE);
+                    }
                 } 
                 UNIX_STDOUT_REDIRECT => {
                     if let Some(&next_ch) = chars_iter.peek() && next_ch == REDIRECT {
