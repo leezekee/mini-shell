@@ -27,10 +27,6 @@ pub fn is_executable(file_path: &PathBuf) -> bool {
     }
 }
 
-pub fn not_found(parsed_command: ParsedCommand) {
-    println!("{}: command not found", parsed_command.command);
-}
-
 pub fn execute_external(program: &String, args: Args, io_handler: &IOHandler) -> ShellResult {
     let out = match io_handler.stdout_mode {
         IOMode::INHERIT => Stdio::inherit(),
@@ -52,7 +48,8 @@ pub fn execute_external(program: &String, args: Args, io_handler: &IOHandler) ->
         .args(args)
         .stdout(out)
         .stderr(err)
-        .status()
+        .spawn()?
+        .wait()
     {
         Ok(_) => Ok(1),
         _ => Err(ShellError::ExecuteError(program.to_string())),

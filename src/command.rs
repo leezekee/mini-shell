@@ -5,7 +5,6 @@ use crate::shellio::IOHandler;
 use crate::utils::*;
 use std::env;
 use std::path::Path;
-
 pub fn not_found(parsed_command: ParsedCommand, paths: RunTimeEnvPath, io_handler: &IOHandler) {
     io_handler.stdout(format_args!(
         "{}: command not found",

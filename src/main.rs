@@ -15,12 +15,7 @@ fn main() {
     let mut io_handler = IOHandler::new();
     let mut command_handler = CommandHandler::new();
     loop {
-        // print!("$ ");
         IOHandler::print_prompt();
-
-        // io::stdout().flush().unwrap();
-        // let mut raw_command = String::new();
-        // io::stdin().read_line(&mut raw_command).unwrap();
         exec_command(&mut command_handler, &mut io_handler);
         io_handler.reset();
     }
@@ -40,19 +35,17 @@ fn exec_command(command_handler: &mut CommandHandler, io_handler: &mut IOHandler
     match parsed_command {
         Ok(cmd) => command = cmd,
         Err(e) => {
-            // println!("{}", e);
             io_handler.stderr(format_args!("{}", e));
             return;
         }
     }
-    // io_handler.stdout(format_args!("{:?}", command));
-
+    IOHandler::debug(format_args!("{:?}", command));
     if !command.stdout.is_empty() {
         io_handler.stdout_mode = shellio::IOMode::FILE;
         io_handler.stdout_redirect_path = command.stdout.clone();
     }
 
-    if !command.stdout.is_empty() {
+    if !command.stderr.is_empty() {
         io_handler.stderr_mode = shellio::IOMode::FILE;
         io_handler.stderr_redirect_path = command.stderr.clone();
     }

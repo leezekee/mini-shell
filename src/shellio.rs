@@ -34,11 +34,11 @@ pub struct IOHandler {
     pub stdin_pipe: PipeHandler,
     pub stdout_pipe: PipeHandler,
     pub stderr_pipe: PipeHandler,
-
-    pub out_level: OutLevel,
 }
 
 impl IOHandler {
+    pub const OUT_LEVEL: OutLevel = OutLevel::INFO;
+
     pub fn new() -> IOHandler {
         IOHandler {
             stdin_mode: IOMode::INHERIT,
@@ -50,7 +50,6 @@ impl IOHandler {
             stdin_pipe: None,
             stdout_pipe: None,
             stderr_pipe: None,
-            out_level: OutLevel::INFO,
         }
     }
 
@@ -85,6 +84,10 @@ impl IOHandler {
     }
 
     pub fn stdout(&self, args: fmt::Arguments) {
+        println!(
+            "current mode: {:?}, path: {:?}",
+            self.stdout_mode, self.stdout_redirect_path
+        );
         match self.stdout_mode {
             IOMode::FILE => {
                 let file_result = OpenOptions::new()
@@ -92,10 +95,13 @@ impl IOHandler {
                     .append(true)
                     .open(&self.stdout_redirect_path);
 
+                println!("File result: {:?}", file_result);
+
                 if let Ok(mut file) = file_result {
                     let _ = file.write_fmt(args);
                     let _ = writeln!(file);
-                } else {
+                } else if let Err(e) = file_result {
+                    println!("{}", e);
                     eprintln!(
                         "[ShellIO Error] Unable to write to file: {}",
                         self.stdout_redirect_path
@@ -112,6 +118,10 @@ impl IOHandler {
     }
 
     pub fn stderr(&self, args: fmt::Arguments) {
+        println!(
+            "current stderr : {:?} path : {:?}",
+            self.stderr_mode, self.stderr_redirect_path
+        );
         match self.stderr_mode {
             IOMode::FILE => {
                 let file_result = OpenOptions::new()
@@ -151,10 +161,23 @@ impl IOHandler {
         self.stderr_pipe = None;
     }
 
-    pub fn debug() {}
-    pub fn info() {}
-    pub fn warn() {}
-    pub fn error() {}
+    pub fn debug(args: fmt::Arguments) {
+        Self::_out(OutLevel::DEBUG, args);
+    }
+    pub fn info(args: fmt::Arguments) {
+        Self::_out(OutLevel::INFO, args);
+    }
+    pub fn warn(args: fmt::Arguments) {
+        Self::_out(OutLevel::WARN, args);
+    }
+    pub fn error(args: fmt::Arguments) {
+        Self::_out(OutLevel::ERROR, args);
+    }
 
-    fn _out() {}
+    fn _out(level: OutLevel, args: fmt::Arguments) {
+        if level < Self::OUT_LEVEL {
+            let _ = io::stdout().write_fmt(args);
+            println!();
+        }
+    }
 }
